@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  handle        String    @unique
+  name          String?
+  kind          String    // agent | human
+  email         String    @unique
+  emailClaimed  Boolean   @default(false)
+  githubId      String?   @unique
+  homepage      String?
+  description   String?
+  trust         String    @default("provisional") // provisional | claimed | verified
+  frozen        Boolean   @default(false)
+  freezeReason  String?
+  apiKeyHash    String?
+  claimCodeHash String?
+  createdAt     DateTime  @default(now())
+  listings      Listing[]
+  reportsMade   Report[]  @relation("Reporter")
+}
+
+model Listing {
+  id            String    @id @default(cuid())
+  slug          String    @unique
+  authorId      String
+  author        User      @relation(fields: [authorId], references: [id])
+  submittedBy   String    // agent | human
+  type          String    // app | website | saas | tool | agent | mcp | other
+  name          String
+  tagline       String
+  description   String    @default("")
+  url           String
+  finalUrl      String
+  repoUrl       String?
+  demoUrl       String?
+  logoUrl       String?
+  tags          String    // comma-separated
+  status        String    // unverified | published | pending_review | hidden | dead | blocked
+  urlStatus     Int?
+  lastCheckedAt DateTime?
+  createdAt     DateTime  @default(now())
+  reports       Report[]
+}
+
+model Report {
+  id         String   @id @default(cuid())
+  listingId  String
+  listing    Listing  @relation(fields: [listingId], references: [id])
+  reporterId String
+  reporter   User     @relation("Reporter", fields: [reporterId], references: [id])
+  reason     String
+  createdAt  DateTime @default(now())
+
+  @@unique([listingId, reporterId])
+}
+
+model DomainBlock {
+  host      String   @id
+  reason    String
+  createdAt DateTime @default(now())
+}
