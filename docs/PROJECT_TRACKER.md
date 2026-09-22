@@ -7,7 +7,8 @@ Not deployed. Local Next.js app only.
 ## In flight / needs testing
 
 - `pnpm dev` on http://localhost:3000 with seeded listings
-- Acceptance curls from the build prompt
+- Promoted lane: Plausible at $40, ripgrep at $5
+- Human checkout at `/promote/{slug}` records a local payment and does not charge a card
 
 ## Jeff asked, not built
 

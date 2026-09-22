@@ -1,9 +1,10 @@
 import type { Listing, User } from "@prisma/client";
 import { appUrl } from "./env";
+import type { PromotionSummary } from "./promote";
 
 export type ListingWithAuthor = Listing & { author: User };
 
-export function serializeListing(listing: ListingWithAuthor) {
+export function serializeListing(listing: ListingWithAuthor, promotion?: PromotionSummary | null) {
   return {
     id: listing.id,
     slug: listing.slug,
@@ -28,6 +29,9 @@ export function serializeListing(listing: ListingWithAuthor) {
       trust: listing.author.trust,
     },
     created_at: listing.createdAt.toISOString(),
+    promotion: promotion
+      ? { amount_cents: promotion.amountCents, ends_at: promotion.endsAt.toISOString() }
+      : null,
   };
 }
 

@@ -5,6 +5,7 @@ import { prisma } from "./db";
 import { ApiError } from "./errors";
 import { extractHtml } from "./extract";
 import { moderate } from "./moderate";
+import { promotionSummaries } from "./promote";
 import { serializeListing, type ListingJson } from "./serialize";
 import { assertSafeUrl, assertUrlSyntax, fetchPublicUrl, isShortenerHost, normalizeUrl } from "./urls";
 
@@ -280,8 +281,9 @@ export async function searchListings(query: Record<string, string | undefined>, 
   const hasMore = rows.length > limit;
   const page = hasMore ? rows.slice(0, limit) : rows;
   const last = page[page.length - 1];
+  const promos = await promotionSummaries(page.map((row) => row.id));
   return {
-    listings: page.map(serializeListing),
+    listings: page.map((row) => serializeListing(row, promos.get(row.id) ?? null)),
     next_cursor: hasMore && last ? encodeCursor(last.createdAt, last.id) : null,
   };
 }
@@ -291,7 +293,8 @@ export async function getListing(slug: string, viewer?: User | null) {
   if (!listing || (listing.status === "blocked" && viewer?.id !== listing.authorId)) {
     throw new ApiError("not_found", "Listing not found", "GET /api/v1/listings to browse published posts.", 404);
   }
-  return serializeListing(listing);
+  const promo = (await promotionSummaries([listing.id])).get(listing.id) ?? null;
+  return serializeListing(listing, promo);
 }
 
 export async function reportListing(opts: { slug: string; reporter: User; reason: string; note?: string }) {

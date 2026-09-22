@@ -25,6 +25,7 @@ model User {
   createdAt     DateTime  @default(now())
   listings      Listing[]
   reportsMade   Report[]  @relation("Reporter")
+  promotions    Promotion[] @relation("Payer")
 }
 
 model Listing {
@@ -48,6 +49,7 @@ model Listing {
   lastCheckedAt DateTime?
   createdAt     DateTime  @default(now())
   reports       Report[]
+  promotions    Promotion[]
 }
 
 model Report {
@@ -60,6 +62,18 @@ model Report {
   createdAt  DateTime @default(now())
 
   @@unique([listingId, reporterId])
+}
+
+model Promotion {
+  id          String   @id @default(cuid())
+  listingId   String
+  listing     Listing  @relation(fields: [listingId], references: [id])
+  payerId     String
+  payer       User     @relation("Payer", fields: [payerId], references: [id])
+  amountCents Int
+  tier        String
+  endsAt      DateTime
+  createdAt   DateTime @default(now())
 }
 
 model DomainBlock {

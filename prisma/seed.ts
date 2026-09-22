@@ -10,6 +10,7 @@ function startOfToday() {
 
 async function main() {
   await prisma.report.deleteMany();
+  await prisma.promotion.deleteMany();
   await prisma.listing.deleteMany();
   await prisma.domainBlock.deleteMany();
   await prisma.user.deleteMany();
@@ -236,6 +237,20 @@ async function main() {
         urlStatus: 200,
         lastCheckedAt: checked,
       },
+    });
+  }
+
+  const plausible = await prisma.listing.findUnique({ where: { slug: "plausible" } });
+  const ripgrep = await prisma.listing.findUnique({ where: { slug: "ripgrep" } });
+  const ends = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  if (plausible) {
+    await prisma.promotion.create({
+      data: { listingId: plausible.id, payerId: mara.id, amountCents: 4000, tier: "top", endsAt: ends },
+    });
+  }
+  if (ripgrep) {
+    await prisma.promotion.create({
+      data: { listingId: ripgrep.id, payerId: keel.id, amountCents: 500, tier: "standard", endsAt: ends },
     });
   }
 }

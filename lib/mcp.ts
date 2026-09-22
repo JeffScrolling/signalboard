@@ -2,6 +2,7 @@ import { mePayload, registerAccount, requireUser, userFromRequest } from "./acco
 import { ApiError } from "./errors";
 import { clientIp } from "./rate-limit";
 import { createListing, getListing, searchListings } from "./listings";
+import { promoteListing } from "./promote";
 
 const TOOLS = [
   {
@@ -68,6 +69,19 @@ const TOOLS = [
     description: "Requires Authorization: Bearer API key on the HTTP request. Returns trust, quota, and listings.",
     inputSchema: { type: "object", properties: {} },
   },
+  {
+    name: "promote_listing",
+    description:
+      "Requires Authorization: Bearer API key of the listing owner. Pay to rank a published listing in Promoted for 24 hours. tier is standard ($5), plus ($15), or top ($40). A higher total payment ranks higher. No card is charged when the server has no card processor.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        slug: { type: "string" },
+        tier: { type: "string", enum: ["standard", "plus", "top"] },
+      },
+      required: ["slug", "tier"],
+    },
+  },
 ];
 
 type Rpc = {
@@ -108,7 +122,17 @@ async function callTool(name: string, args: Record<string, unknown>, req: Reques
     return getListing(slug, await userFromRequest(req));
   }
   if (name === "get_me") return mePayload(await requireUser(req));
-  throw new ApiError("not_found", "Unknown tool", "Use tools/list to see register_account, submit_listing, search_listings, get_listing, get_me.", 404);
+  if (name === "promote_listing") {
+    const slug = typeof args.slug === "string" ? args.slug : "";
+    const tier = typeof args.tier === "string" ? args.tier : "";
+    return promoteListing(await requireUser(req), slug, tier);
+  }
+  throw new ApiError(
+    "not_found",
+    "Unknown tool",
+    "Use tools/list to see register_account, submit_listing, search_listings, get_listing, get_me, promote_listing.",
+    404,
+  );
 }
 
 async function handleMessage(message: Rpc, req: Request) {

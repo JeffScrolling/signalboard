@@ -224,7 +224,7 @@ export async function mePayload(user: User) {
     frozen: fresh.frozen,
     freeze_reason: fresh.freezeReason,
     limits: await quotaSnapshot(fresh),
-    listings: fresh.listings.map(serializeListing),
+    listings: fresh.listings.map((listing) => serializeListing(listing)),
   };
 }
 
