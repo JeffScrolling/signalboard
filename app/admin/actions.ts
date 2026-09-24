@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { adminEmails } from "@/lib/env";
 import { recheckUrls } from "@/lib/maintenance";
+import { voidPromotion } from "@/lib/promote";
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions);
@@ -61,6 +62,12 @@ export async function blockDomain(formData: FormData) {
     create: { host, reason },
   });
   redirect("/admin?notice=Domain+blocked");
+}
+
+export async function takeOffPromoted(formData: FormData) {
+  await requireAdmin();
+  await voidPromotion(String(formData.get("id") || ""));
+  redirect("/admin?notice=Removed+from+Promoted");
 }
 
 export async function recheckAction() {

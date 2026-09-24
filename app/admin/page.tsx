@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth";
-import { blockDomain, freezeAccount, hideListing, recheckAction, restoreListing } from "./actions";
+import { blockDomain, freezeAccount, hideListing, recheckAction, restoreListing, takeOffPromoted } from "./actions";
+import { formatMoney } from "@/lib/promote";
 import { requestMagicLink } from "@/app/submit/actions";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -37,6 +38,11 @@ export default async function AdminPage({
       </>
     );
   }
+  const paid = await prisma.promotion.findMany({
+    where: { status: "paid", endsAt: { gt: new Date() } },
+    include: { listing: true, payer: true },
+    orderBy: { endsAt: "asc" },
+  });
   const rows = await prisma.listing.findMany({
     where: { status: { in: ["pending_review", "hidden", "blocked"] } },
     include: { author: true },
@@ -51,6 +57,43 @@ export default async function AdminPage({
       <form action={recheckAction} className="mt-4">
         <button type="submit">Recheck URLs</button>
       </form>
+      <section className="mt-8">
+        <h2 className="text-xl font-semibold">Active paid placements</h2>
+        {!paid.length ? <p className="mt-2 text-muted">No paid placements.</p> : null}
+        {paid.length ? (
+          <table className="mt-3">
+            <thead>
+              <tr>
+                <th>Listing</th>
+                <th>Amount</th>
+                <th>Ends</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {paid.map((row) => (
+                <tr key={row.id}>
+                  <td>
+                    <a href={`/p/${row.listing.slug}`}>{row.listing.name}</a>
+                    <div className="text-sm text-muted">@{row.payer.handle}</div>
+                  </td>
+                  <td>{formatMoney(row.amountCents)}</td>
+                  <td>{row.endsAt.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</td>
+                  <td>
+                    <form action={takeOffPromoted}>
+                      <input type="hidden" name="id" value={row.id} />
+                      <button className="quiet" type="submit">
+                        Take off Promoted
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : null}
+        <p className="mt-2 text-sm text-muted">Taking a listing off Promoted removes the rank. It does not send a card refund.</p>
+      </section>
       {lanes.map((lane) => {
         const items = rows.filter((row) => row.status === lane);
         return (

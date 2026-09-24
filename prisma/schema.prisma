@@ -65,15 +65,28 @@ model Report {
 }
 
 model Promotion {
-  id          String   @id @default(cuid())
-  listingId   String
-  listing     Listing  @relation(fields: [listingId], references: [id])
-  payerId     String
-  payer       User     @relation("Payer", fields: [payerId], references: [id])
-  amountCents Int
-  tier        String
-  endsAt      DateTime
-  createdAt   DateTime @default(now())
+  id             String    @id @default(cuid())
+  listingId      String
+  listing        Listing   @relation(fields: [listingId], references: [id])
+  payerId        String
+  payer          User      @relation("Payer", fields: [payerId], references: [id])
+  amountCents    Int
+  tier           String
+  status         String    @default("paid") // pending | paid | refunded | void
+  idempotencyKey String    @unique @default(cuid())
+  externalRef    String?
+  endsAt         DateTime
+  paidAt         DateTime?
+  refundedAt     DateTime?
+  createdAt      DateTime  @default(now())
+}
+
+model MagicLink {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
 }
 
 model DomainBlock {

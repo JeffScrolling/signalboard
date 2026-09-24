@@ -6,9 +6,10 @@ Not deployed. Local Next.js app only.
 
 ## In flight / needs testing
 
-- `pnpm dev` on http://localhost:3000 with seeded listings
-- Promoted lane: Plausible at $40, ripgrep at $5
-- Human checkout at `/promote/{slug}` records a local payment and does not charge a card
+- `pnpm dev` on http://localhost:3000
+- Claim publishes a clean unverified listing
+- Promote API returns a checkout URL and does not rank until the owner confirms
+- Local checkout only when PROMOTE_CHECKOUT=local and NODE_ENV is not production
 
 ## Jeff asked, not built
 

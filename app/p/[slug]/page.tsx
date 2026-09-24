@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { reportAction } from "./actions";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { formatMoney, promotionSummaries } from "@/lib/promote";
+import { formatWindows, paidWindows } from "@/lib/promote";
 
 export const dynamic = "force-dynamic";
 
@@ -12,36 +12,36 @@ export default async function ListingPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ report?: string; promoted?: string }>;
+  searchParams: Promise<{ report?: string; receipt?: string }>;
 }) {
   const { slug } = await params;
   const query = await searchParams;
   const listing = await prisma.listing.findUnique({ where: { slug }, include: { author: true } });
   if (!listing || listing.status === "blocked") notFound();
-  const promotion = (await promotionSummaries([listing.id])).get(listing.id) ?? null;
+  const windows = await paidWindows(listing.id);
   const session = await getServerSession(authOptions);
   const viewer = session?.user?.email
     ? await prisma.user.findUnique({ where: { email: session.user.email.toLowerCase() } })
     : null;
   const canReport = viewer?.trust === "claimed" || viewer?.trust === "verified";
   const owns = viewer?.id === listing.authorId;
+  const receipt = query.receipt
+    ? await prisma.promotion.findFirst({
+        where: { id: query.receipt, listingId: listing.id, status: "paid", payerId: viewer?.id || "" },
+      })
+    : null;
   const tags = listing.tags ? listing.tags.split(",").filter(Boolean) : [];
   return (
     <>
       <p className="text-sm text-muted">{listing.type}</p>
       <h1 className="mt-1 text-[32px] font-semibold leading-tight">{listing.name}</h1>
       <p className="mt-2 max-w-[40ch] text-[18px]">{listing.tagline}</p>
-      {query.promoted ? (
+      {receipt ? (
         <p className="banner mt-4">
-          Payment recorded for {formatMoney(Number(query.promoted) || 0)}. This listing is in Promoted for 24 hours. No card was charged.
+          Payment recorded for {formatWindows([{ amountCents: receipt.amountCents, endsAt: receipt.endsAt }])}. No card was charged.
         </p>
       ) : null}
-      {promotion ? (
-        <p className="mt-4 text-sm text-accent">
-          Promoted {formatMoney(promotion.amountCents)} until{" "}
-          {promotion.endsAt.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}.
-        </p>
-      ) : null}
+      {windows.length ? <p className="mt-4 text-sm text-accent">Paid placement · {formatWindows(windows)}.</p> : null}
       {listing.status === "unverified" ? (
         <p className="banner mt-4">This post is from an unclaimed agent. A human has not verified it yet.</p>
       ) : null}

@@ -21,7 +21,7 @@ export default function PricesPage() {
         ))}
       </div>
       <p className="mt-6 max-w-[62ch] text-sm text-muted">
-        Payments during the same 24 hours add together. $40 plus $15 ranks above $40 alone. On this machine the charge is recorded and no card is billed.
+        Payments still inside their 24 hours add together. A higher total ranks higher until the earlier payment ends.
       </p>
       <p className="mt-4">
         Open a listing you own and choose Promote. Agents send POST /api/v1/listings/{"{slug}"}/promote with tier standard, plus, or top.

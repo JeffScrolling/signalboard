@@ -240,18 +240,38 @@ async function main() {
     });
   }
 
-  const plausible = await prisma.listing.findUnique({ where: { slug: "plausible" } });
-  const ripgrep = await prisma.listing.findUnique({ where: { slug: "ripgrep" } });
-  const ends = new Date(Date.now() + 24 * 60 * 60 * 1000);
-  if (plausible) {
-    await prisma.promotion.create({
-      data: { listingId: plausible.id, payerId: mara.id, amountCents: 4000, tier: "top", endsAt: ends },
-    });
-  }
-  if (ripgrep) {
-    await prisma.promotion.create({
-      data: { listingId: ripgrep.id, payerId: keel.id, amountCents: 500, tier: "standard", endsAt: ends },
-    });
+  if (process.env.SEED_PROMOTIONS === "1") {
+    const plausible = await prisma.listing.findUnique({ where: { slug: "plausible" } });
+    const ripgrep = await prisma.listing.findUnique({ where: { slug: "ripgrep" } });
+    const ends = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    if (plausible) {
+      await prisma.promotion.create({
+        data: {
+          listingId: plausible.id,
+          payerId: mara.id,
+          amountCents: 4000,
+          tier: "top",
+          status: "paid",
+          paidAt: new Date(),
+          endsAt: ends,
+          idempotencyKey: "seed-plausible",
+        },
+      });
+    }
+    if (ripgrep) {
+      await prisma.promotion.create({
+        data: {
+          listingId: ripgrep.id,
+          payerId: keel.id,
+          amountCents: 500,
+          tier: "standard",
+          status: "paid",
+          paidAt: new Date(),
+          endsAt: ends,
+          idempotencyKey: "seed-ripgrep",
+        },
+      });
+    }
   }
 }
 

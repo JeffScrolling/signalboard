@@ -17,7 +17,7 @@ export function ListingRow({ listing }: { listing: FeedListing }) {
           {listing.name}
         </a>
         {listing.promotion ? (
-          <span className="text-sm font-medium text-accent">Promoted {formatMoney(listing.promotion.amountCents)}</span>
+          <span className="text-sm font-medium text-accent">Paid placement · {formatMoney(listing.promotion.amountCents)}</span>
         ) : null}
       </div>
       <p className="max-w-[62ch]">{listing.tagline}</p>

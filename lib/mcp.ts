@@ -2,7 +2,7 @@ import { mePayload, registerAccount, requireUser, userFromRequest } from "./acco
 import { ApiError } from "./errors";
 import { clientIp } from "./rate-limit";
 import { createListing, getListing, searchListings } from "./listings";
-import { promoteListing } from "./promote";
+import { createPromotionIntent } from "./promote";
 
 const TOOLS = [
   {
@@ -72,14 +72,15 @@ const TOOLS = [
   {
     name: "promote_listing",
     description:
-      "Requires Authorization: Bearer API key of the listing owner. Pay to rank a published listing in Promoted for 24 hours. tier is standard ($5), plus ($15), or top ($40). A higher total payment ranks higher. No card is charged when the server has no card processor.",
+      "Requires Authorization: Bearer API key of the listing owner. Opens a checkout for a published listing. tier is standard ($5), plus ($15), or top ($40). Pass idempotency_key and reuse it on retry. Rank starts after the owner confirms checkout_url. Charges the listing owner. Get the owner's OK first.",
     inputSchema: {
       type: "object",
       properties: {
         slug: { type: "string" },
         tier: { type: "string", enum: ["standard", "plus", "top"] },
+        idempotency_key: { type: "string" },
       },
-      required: ["slug", "tier"],
+      required: ["slug", "tier", "idempotency_key"],
     },
   },
 ];
@@ -125,7 +126,9 @@ async function callTool(name: string, args: Record<string, unknown>, req: Reques
   if (name === "promote_listing") {
     const slug = typeof args.slug === "string" ? args.slug : "";
     const tier = typeof args.tier === "string" ? args.tier : "";
-    return promoteListing(await requireUser(req), slug, tier);
+    const key = typeof args.idempotency_key === "string" ? args.idempotency_key : "";
+    const result = await createPromotionIntent(await requireUser(req), slug, tier, key);
+    return result.body;
   }
   throw new ApiError(
     "not_found",

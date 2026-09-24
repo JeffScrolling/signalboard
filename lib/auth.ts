@@ -1,25 +1,18 @@
 import { createHash, randomBytes } from "crypto";
 import type { NextAuthOptions } from "next-auth";
-import type { Adapter, AdapterAccount, AdapterSession, AdapterUser, VerificationToken } from "next-auth/adapters";
+import type { Adapter, AdapterAccount, AdapterSession, AdapterUser } from "next-auth/adapters";
 import EmailProvider from "next-auth/providers/email";
 import GitHubProvider from "next-auth/providers/github";
 import { prisma } from "./db";
 import { appUrl } from "./env";
 import { sendMail } from "./mail";
 
-type StoredToken = VerificationToken;
-
-const globalTokens = globalThis as unknown as {
-  __sbTokens?: Map<string, StoredToken>;
-};
-
-function tokens() {
-  if (!globalTokens.__sbTokens) globalTokens.__sbTokens = new Map();
-  return globalTokens.__sbTokens;
-}
-
-function tokenKey(identifier: string, token: string) {
-  return `${identifier}\0${token}`;
+function authSecret() {
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (process.env.NODE_ENV === "production" && (!secret || secret === "dev-secret-change-me")) {
+    throw new Error("Set NEXTAUTH_SECRET before running in production.");
+  }
+  return secret || "dev-secret-change-me";
 }
 
 function toAdapter(user: {
@@ -126,19 +119,20 @@ export const adapter: Adapter = {
     return;
   },
   async createVerificationToken(token) {
-    tokens().set(tokenKey(token.identifier.toLowerCase(), token.token), {
-      ...token,
-      identifier: token.identifier.toLowerCase(),
+    const identifier = token.identifier.toLowerCase();
+    await prisma.magicLink.upsert({
+      where: { identifier_token: { identifier, token: token.token } },
+      update: { expires: token.expires },
+      create: { identifier, token: token.token, expires: token.expires },
     });
-    return token;
+    return { ...token, identifier };
   },
   async useVerificationToken({ identifier, token }) {
-    const key = tokenKey(identifier.toLowerCase(), token);
-    const stored = tokens().get(key);
-    tokens().delete(key);
-    if (!stored) return null;
-    if (stored.expires.getTime() < Date.now()) return null;
-    return stored;
+    const key = { identifier: identifier.toLowerCase(), token };
+    const stored = await prisma.magicLink.findUnique({ where: { identifier_token: key } });
+    if (stored) await prisma.magicLink.delete({ where: { identifier_token: key } }).catch(() => undefined);
+    if (!stored || stored.expires.getTime() < Date.now()) return null;
+    return { identifier: stored.identifier, token: stored.token, expires: stored.expires };
   },
 };
 
@@ -191,7 +185,7 @@ if (process.env.GITHUB_ID && process.env.GITHUB_SECRET) {
 export const authOptions: NextAuthOptions = {
   adapter,
   providers,
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: authSecret(),
   session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
   callbacks: {
     async jwt({ token, user }) {
@@ -218,7 +212,7 @@ export const authOptions: NextAuthOptions = {
 export async function createMagicLink(email: string, callbackPath: string) {
   const identifier = email.trim().toLowerCase();
   const plain = randomBytes(32).toString("hex");
-  const secret = process.env.NEXTAUTH_SECRET || "dev-secret-change-me";
+  const secret = authSecret();
   const hashed = createHash("sha256").update(`${plain}${secret}`).digest("hex");
   const expires = new Date(Date.now() + 72 * 60 * 60 * 1000);
   await adapter.createVerificationToken?.({ identifier, token: hashed, expires });

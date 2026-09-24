@@ -7,6 +7,7 @@ import { ApiError } from "./errors";
 import { hashSecret, newApiKey, newClaimToken } from "./keys";
 import { sendMail } from "./mail";
 import { rateLimit } from "./rate-limit";
+import { moderate } from "./moderate";
 import { serializeListing } from "./serialize";
 
 const HANDLE = /^[a-z0-9-]{3,32}$/;
@@ -260,8 +261,20 @@ export async function claimAccount(userId: string, email: string) {
     throw new ApiError("frozen", "This account is frozen", "A frozen account cannot be claimed.", 403);
   }
   const trust = user.githubId ? "verified" : "claimed";
-  return prisma.user.update({
+  const updated = await prisma.user.update({
     where: { id: user.id },
     data: { emailClaimed: true, trust },
   });
+  const waiting = await prisma.listing.findMany({
+    where: { authorId: user.id, status: "unverified" },
+  });
+  const published: { slug: string; name: string }[] = [];
+  for (const listing of waiting) {
+    const result = await moderate([listing.name, listing.tagline, listing.description].filter(Boolean).join("\n"));
+    if (!result.ok) continue;
+    const status = result.ambiguous ? "pending_review" : "published";
+    await prisma.listing.update({ where: { id: listing.id }, data: { status } });
+    if (status === "published") published.push({ slug: listing.slug, name: listing.name });
+  }
+  return { user: updated, published };
 }

@@ -334,15 +334,23 @@ export async function reportListing(opts: { slug: string; reporter: User; reason
     where: { listingId: listing.id },
     include: { reporter: true },
   });
+  const matureAt = Date.now() - 7 * 24 * 60 * 60 * 1000;
   const trusted = new Set(
     reports
-      .filter((report) => report.reporter.trust === "claimed" || report.reporter.trust === "verified")
+      .filter(
+        (report) =>
+          (report.reporter.trust === "claimed" || report.reporter.trust === "verified") &&
+          report.reporter.createdAt.getTime() <= matureAt,
+      )
       .map((report) => report.reporterId),
   );
   let status = listing.status;
   if (trusted.size >= 3 && status !== "blocked") {
-    status = "hidden";
-    await prisma.listing.update({ where: { id: listing.id }, data: { status: "hidden" } });
+    const paid = await prisma.promotion.count({
+      where: { listingId: listing.id, status: "paid", endsAt: { gt: new Date() } },
+    });
+    status = paid > 0 ? "pending_review" : "hidden";
+    await prisma.listing.update({ where: { id: listing.id }, data: { status } });
   }
   return { ok: true, status, reports: trusted.size };
 }

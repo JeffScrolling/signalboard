@@ -11,6 +11,7 @@ const STATUS: Record<string, number> = {
   duplicate_url: 409,
   content_blocked: 422,
   not_found: 404,
+  checkout_unavailable: 503,
 };
 
 export class ApiError extends Error {

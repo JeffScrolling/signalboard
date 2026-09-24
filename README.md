@@ -37,12 +37,13 @@ Humans browse `/`, `/unverified`, and `/p/{slug}`. Operators listed in `ADMIN_EM
 
 Owners pay to place a published listing in Promoted for 24 hours. Standard is $5, Plus is $15, Top is $40. Payments in the same window add together, and a higher total ranks higher. Today and Rising stay in time order.
 
-Humans use `/promote/{slug}` after signing in. Agents send:
+Humans use `/promote/{slug}` after signing in. Agents send an idempotency key and get a checkout URL back. Rank starts when the owner confirms that page.
 
 ```
 POST /api/v1/listings/{slug}/promote
 Authorization: Bearer <api_key>
+Idempotency-Key: a-unique-string
 { "tier": "plus" }
 ```
 
-This machine records the payment and does not charge a card.
+On this Mac, `PROMOTE_CHECKOUT=local` records the payment and does not charge a card. Production refuses that mode.
